@@ -1,0 +1,312 @@
+---
+title: "Spring 2019 ARCHY 483 Experimental Assemblages Report"
+author: "Ashlee Breedlove"
+date: "`r Sys.Date()`"
+output: 
+    bookdown::word_document2:
+      fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,     # this ensures we can see your code in the output
+                      message = FALSE, # this stops messages from appearing
+                      warning = FALSE) # this stops warnings from appearing
+```
+
+## Introduction 
+
+<!-- look at the rubric to know what to put in here -->
+
+## Methods
+
+<!-- look at the rubric to know what to put in here -->
+
+## Results
+
+<!-- look at the rubric to know what to put in here -->
+
+Note that I have set every chunk below here to `eval = FALSE`. This means that you can knit this Rmd but no code will be run. When you want to knit and have some code run, delete `eval = FALSE` from the chunk that you want to run. The purpose of this is to allow you to test your work as you go by knitting. If the knitting succeeds, then all your code so far is working!
+
+```{r read-in-the-data, eval = FALSE}
+library(tidyverse)
+library(cowplot)
+library(ggbeeswarm)
+
+# read the data --------------------
+artefacts <- readxl::read_excel("Experimental Assemblage Data.xlsx")
+```
+
+```{r delete-this-chunk, eval = FALSE}
+# do this interactively to check how things look, and delete 
+# this chunk of code from the Rmd after you have worked 
+# out how to clean the data. Put your data cleaning code 
+# in the next chunk
+
+# check the data class for each variable
+glimpse(artefacts) # check that the variables are dbl and chr as you expect
+
+# check for spelling mistakes in your data, make a note so you can correct
+# them in the next chunk. R
+artefacts %>% # shortcut to type %>% is cmd/ctr + shift + m
+  group_by(raw_material) %>% # replace raw_material with other chr variables
+  tally                      # and re-run these three lines of code to check 
+                             # for typos in your chr variables
+
+```
+
+
+```{r tidy-the-data, eval = FALSE}
+# Do not delete this chunk, we want to see how you have cleaned your 
+# data to prepare it for analysis
+# you may need to clean up some cols, e.g. cols that are chr but should be num
+# you may need to fix some typos due to accidental mistakes during data entry
+artefacts <- 
+artefacts %>%
+  mutate(t5 = parse_number(t5)) %>%    # example of how to convert chr to dbl
+  separate(artefact_number,            # if you recorded each artefact as 1-1, 1-2
+           into = c("assemblage",      # etc., then you need these lines with
+                    "artefact_id"),    # separate() that into two columns
+           sep = "-",
+           remove = FALSE) %>% 
+  # these next lines with mutate() show how to correct spelling mistakes in
+  # your data
+ mutate(Termination_Type = ifelse(Termination_Type == "hinginging", 
+                                  "hinging", 
+                                  Termination_Type)) %>% 
+ mutate(Termination_Type = ifelse(Termination_Type == "feathery", 
+                                  "feathered", 
+                                  Termination_Type)) 
+  
+```
+
+### Flakes
+
+```{r tally-the-data-1, eval = FALSE}
+# Prepare for plotting some categorical variables
+# by tallying them up and storing the tally in
+# a new data frame
+
+# tally up the artefact types per assemblage
+artefact_type_tally <- 
+  artefacts %>% 
+  group_by(assemblage,          # The column names in your data may be slightly
+           artefact_type) %>%   # different to what I've got here. You need to edit
+  tally  %>%                    # the code throughout here to use your column names
+  filter(!is.na(artefact_type), # These two lines remove NA values in these two
+         !is.na(assemblage))    # columns. If there are no NAs, they do nothing
+
+# tally up the raw material types per assemblage
+raw_material_type_tally <- 
+  artefacts %>% 
+  group_by(assemblage, 
+           raw_material) %>% 
+  tally  %>% 
+  filter(!is.na(raw_material),
+         !is.na(assemblage))
+```
+
+
+```{r scatterplot-1, eval = FALSE}
+# you do not need to change anything major here
+# plot the artefact types per assemblage
+  ggplot(artefact_type_tally,
+         aes(assemblage,               # you may need to change this variable name to match your data
+             n, 
+             fill = artefact_type)) +  # and you may need to change this name also
+  geom_col() +
+  labs(x = "Assemblage",
+       y = "Number of artefacts",
+       fill = "Artefact type") +
+  theme_minimal(base_size = 12) +
+  scale_fill_viridis_d() 
+```
+
+```{r flake-data-prep, eval = FALSE}
+# subset complete flakes only for next metric and technological analysis
+cf <- artefacts %>% 
+  filter(artefact_type == "cf") %>%           # you may need to change artefact_type
+  mutate(assemblage = as.factor(assemblage))  # you may need to change assemblage
+```
+
+```{r flake-metrics-scatterplot, eval = FALSE}
+# You should explore different versions of this plot
+# you are welcome to make multiple, different versions of 
+# this plot to include in your report
+
+# scatterplot of three variables, this is a handy way to show the relationship 
+# between a small number of variables
+ggplot(cf,
+       aes(Length_mm,            # explore different combinations of variables 
+           Width_mm,             # and keep the most interesting results
+           size = Thickness_mm,  # to include in your report
+           colour = assemblage))  +
+  geom_point() +
+  labs(x = "Length (mm)",
+       y = "Width (mm)",
+       size = "Thickness (mm)") +
+  scale_color_viridis_d() +
+  theme_minimal(base_size = 12) 
+```
+
+
+```{r flake-metrics-facet-plot, eval = FALSE}
+# You don't need to change anything major in this chunk unless we 
+# tell you to update it to make it work
+
+# create data frame of all numeric variables except retouch
+# we need this to make a facetted plot to efficiently show 
+# many variables in one plot
+cf_numeric_long <- 
+cf %>% 
+  select(assemblage,   # you may need to change assemblage
+         which(sapply(., class) == "numeric"),    # these three lines will
+            -c(paste0("t", 1:8),                  # remove the columns with GIUR
+               paste0("T", 1:8))) %>%             # i.e. t1, T1, t2, T2, etc
+  gather(variable,                                # if your have cols like i1, i2, i3
+         value,                                   # then replace t & T here with i
+         -assemblage)  %>% 
+  filter(!is.na(value)) %>% 
+  filter(!is.na(assemblage)) %>% 
+  mutate(assemblage = as.factor(assemblage)) 
+
+# facet plot of boxplots of metric variables 
+  ggplot(cf_numeric_long,
+         aes(assemblage,
+             value)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = 0.4) +
+  facet_wrap(~ variable,
+             scales = "free") +
+  labs(x = "Assemblage",
+       y = "") +
+  theme_minimal(base_size = 12) 
+```
+
+
+```{r flake-technology-facet-plot, eval = FALSE}
+# You don't need to change anything major in 
+# this chunk unless we tell you to update it 
+# to make it work
+
+# plot all categorical variables on complete flakes
+  
+# make a list of tallies of categorical variables
+  cf_list_categorical_variables_tally <- 
+    cf %>% 
+  select(which(sapply(., class) == "character"), 
+         assemblage,        # watch out here... 
+         -artefact_type,    # you may need to change these names
+         -artefact_number,  # if your column names differ from
+         -artefact_id,      # ours
+         -raw_material) %>% 
+  gather(variable, 
+         value, 
+         -assemblage) %>% 
+  mutate(assemblage = as.factor(assemblage)) %>% 
+  group_by(assemblage, 
+           variable, 
+           value) %>% 
+  tally %>% 
+  filter(!is.na(value),
+         !is.na(assemblage)) %>% 
+  ungroup %>% 
+  group_split(variable)  
+
+# plot each variable across all assemblages  
+  map(cf_list_categorical_variables_tally,
+      ~ggplot(.x, aes(assemblage, 
+             n,
+             fill = value)) +
+  geom_col() +
+  labs(x = "Assemblage",
+       y = "Number",
+       fill = .x$variable) +
+  scale_fill_viridis_d() +
+  theme_minimal(base_size = 12))  %>% 
+  plot_grid(plotlist  = .) 
+```
+
+### Cores
+
+<!-- copy-paste from flakes, and update, send me a screenshot if you get errors and we'll help you out -->
+
+```{r core-data-prep, eval = FALSE}
+# subset complete flakes only for next metric and technological analysis
+cores <- artefacts %>% 
+  filter(artefact_type == "core") %>%           # you may need to change artefact_type
+  mutate(assemblage = as.factor(assemblage))    # you may need to change assemblage
+```
+
+### Retouched pieces
+
+```{r retouch-measured-using-the-GIUR, eval = FALSE}
+# You don't need to change this chunk unless we tell you to update it to make it work.
+# If you recorded columns of t1, T1, t2, T2 etc., then use this chunk, if not,
+# delete it and look for the next one
+  
+# we assume that the data include a set of columns like this
+# t1 T1 t2 T2 ... and we select only those columns, then
+# we divide pairs of columns to get the ratio for that zone
+  
+divide_two_cols <- function(df){
+ col<-seq(1,ncol(df),by=2)
+ df[,col] / df[,-col]
+}
+
+giur_ratios_per_zone_long_df <- 
+artefacts %>% 
+  select(matches('t\\d|T\\d'), 
+         assemblage) %>%
+  group_split(assemblage, keep = FALSE) %>% 
+  map(~divide_two_cols(.x)) %>% 
+  set_names(unique(flakes$assemblage)) %>% 
+  map_dfr(rowMeans) %>% 
+  gather(variable, value) 
+
+  ggplot(giur_ratios_per_zone_long_df, 
+         aes(variable, 
+             value)) +
+  geom_boxplot()  +
+  geom_quasirandom(alpha = 0.4) +
+  labs(x = "Assemblage",
+       y = "GIUR") +
+  theme_minimal(base_size = 12) +
+  scale_y_continuous(trans='log2')
+```
+
+
+```{r retouch-measured-using-the-IOI, eval = FALSE}
+# You don't need to change this chunk unless we tell you to update it to make it work.
+# If you recorded columns of i1, i2, i3, etc. then use this chunk
+# If you recorded the GIUR, then use the chunk above. If you did neither, 
+# let me know so I can help you
+
+ioi_ratios_per_zone_long_df <- 
+artefacts %>% 
+  select(matches('i\\d')) %>%
+  mutate(ioi_mean = rowMeans(.)) %>% 
+  mutate(assemblage = artefacts$assemblage) 
+
+  ggplot(ioi_ratios_per_zone_long_df, 
+         aes(assemblage, 
+             ioi_mean)) +
+  geom_boxplot()  +
+  geom_quasirandom(alpha = 0.4) +
+  labs(x = "Assemblage",
+       y = "IOI") +
+  theme_minimal(base_size = 12) +
+  scale_y_continuous(trans='log2')
+```
+
+
+## Discussion
+
+## Conclusion
+
+## Collaboration
+
+## References cited
+
+
+<!-- don't delete the line below, it will count the words in your report -->
+Word count: `r wordcountaddin::word_count()`

@@ -1,0 +1,95 @@
+---
+title: "Spring 2019 ARCHY 483 Replication Report"
+author: "Ashlee Breedlove"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) 
+```
+
+## Introduction 
+
+Cascalheira and Bicho used 17 lithic assemblages from the upper paleolithic in Portugal to test the Whole Assemblage Behavioral Index (WABI) method for inferring occupation style and to identify more useful variables (Cascalheira 2018). The WABI approach posits an inverse relationship between retouch frequency and lithic density (Riel-Salvatore 2010). In this report I investigate the strength of those two claims by reproducing their work.
+
+It has been noted by others that different subsistence strategies and mobility patterns will lead to different patterns of waste based in part on how long people stay in one place (Binford 1980, Kuhn 1992). Lithic assemblages in particular can be a useful tool in understanding settlement patterns due to their persistence in the archaeological record.
+
+## Methods
+
+Most of the variables used in the original analysis were not explicitly in the raw dataset, so I created new columns and calculated chip frequency, core frequency, blank frequency, retouch frequency, features frequency, tool diversity, and lithic density. PCA was computed on those variables plus estimated area. A scree plot, a correlations plot, and a biplot of dimensions 1 and 2 were created using FactoMineR and factoextra.
+
+## Results
+
+Figures 1, the scree plot, illustrates how much of the variation within the data set can be explained by the different dimensions. Dimensions 1 and 2 account for roughly 60% of the variation.
+
+Figure 2, the biplot, shows both the sites and the loading arrows. Most of the sites fall within the same general area, with one end being more tightly clustered than the other. The loading arrows show how much each variable contributes to the PCA dimensions and in which direction. 
+
+The data shows an inverse relationship between retouch frequency and tool diversity. It also indicates an inverse relationship between chip frequency and core frequency. There's a positive relationship between estimated area and core frequency, as well as between lithic density, tool diversity, and frequency of features. Chip frequency in particular is shown to have a strong influence in explaining variation with the study sites.
+
+```{r read-in-the-data}
+library(tidyverse)
+data <- read_csv("raw_dataset.csv")
+
+```
+
+```{r tidy-the-data}
+# add freq: core, blank, chip, retouch, feature
+# add tool diversity, lithic density 
+# estimated area exists
+
+working_data <- data %>%
+    mutate(chipFreq = Chips/Artifacts,
+           coreFreq = Cores/Artifacts,
+           blankFreq = Blanks/Artifacts,
+           retFreq  = RetouchedTools/Artifacts,
+           featFreq = Features/SampledVolume,
+           toolDiv = ToolTypes/sqrt(RetouchedTools),
+           lithDens = Artifacts/SampledVolume
+           ) %>%
+      select(chipFreq, coreFreq, blankFreq, retFreq, featFreq, toolDiv, lithDens, EstimatedArea)
+```
+
+```{r plot-the-data}
+row.names(working_data) <- data$Sites
+
+library(FactoMineR)
+# compute PCA
+res.pca <- PCA(working_data, 
+               graph = FALSE)
+
+# inspect eigenvalues, values >1 indicate that component captures more
+# variability that any of the original measurement variables
+eigenvalues <- res.pca$data
+head(eigenvalues[, 1:2])
+
+# inspect distribution of PCs
+library(factoextra)
+fviz_screeplot(res.pca)
+
+# Visualise output from the PCA ------------------------------------------
+
+# create biplot
+fviz_pca_biplot(res.pca)
+
+```
+
+## Conclusion
+
+The first hypothesis, that WABI is insufficient for inferring occupation style and length, can be considered validated. Lithic density does not contribute much to the variation between sites, though it is inverse to retouch frequency. I was also able to replicate and validate hypothesis two, that the frequency of blanks, chips, cores, and retouch scars have more explanatory power. 
+
+## References cited
+
+Binford, Lewis. 1980. "Willow Smoke and Dogs’ Tails: Hunter-Gatherer Settlement Systems and Archaeological Site Formation." American Antiquity 45 (1):4-20.
+
+Cascalheira, João, and Nuno Bicho. 2018. “The Use of Lithic Assemblages for the Definition of Short-term Occupations in Hunter-gatherer Prehistory.” SocArXiv. June 6. doi:10.31235/osf.io/3wgsa.
+
+Kuhn, S. 1992. On Planning and Curated Technologies in the Middle Paleolithic. Journal of Anthropological Research, 48 (3):185-214. Retrieved from http://www.jstor.org/stable/3630634
+
+Riel-Salvatore, Julien. 2010. "A Niche Construction Perspective on the Middle–Upper Paleolithic Transition in Italy." Journal of Archaeological Method and Theory 17 (4):323–355. 
+
+<!-- don't delete the line below, it will count the words in your report. You will need to do a one-time install of the wordcountaddin package first by running this code in your console: source("https://install-github.me/benmarwick/wordcountaddin") #  -->
+Word count: `r wordcountaddin::word_count()`

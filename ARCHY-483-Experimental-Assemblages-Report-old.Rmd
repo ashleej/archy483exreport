@@ -1,0 +1,263 @@
+---
+title: "Spring 2019 ARCHY 483 Experimental Assemblages Report"
+author: "Ashlee Breedlove"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::word_document2:
+  fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+## Introduction 
+
+## Methods
+
+## Results
+
+```{r read-in-the-data}
+library(ggplot2)
+library(dplyr)
+library(cowplot)
+library(ggbeeswarm)
+
+# read the data --------------------
+data <- readxl::read_excel("raw_data.xlsx")
+```
+
+
+
+```{r tidy-the-data}
+# do this interactively to check how things look, and delete from the 
+# Rmd after you have worked out how to clean the data
+glimpse(data)
+
+# you may need to clean up some cols that are chr but should be num
+# you may need to fix some typos
+
+# NEED TO CHANGE CHARACTER TO NUMBER --
+# platform_width, platform_thickness, ioi's,   dorsal_scar_no
+
+```
+
+### Flakes
+
+```{r tally-the-data-1}
+# plot artefact types per assemblage
+# tally up the artefact types per assemblage
+data_artifact_type_tally <- 
+  data %>% 
+  group_by(assemblage_no, artifact_type) %>% 
+  tally  %>% 
+  filter(!is.na(artifact_type),
+         !is.na(assemblage_no))
+
+# tally up the raw material types per assemblage
+data_raw_material_type_tally <- 
+  data %>% 
+  group_by(assemblage_no, raw_material) %>% 
+  tally  %>% 
+  filter(!is.na(raw_material),
+         !is.na(assemblage_no))
+```
+
+
+
+```{r scatterplot-1, fig.cap="Distribution of Artefact Types"}
+# plot the artefact types per assemblage
+  ggplot(data_artifact_type_tally,
+         aes(assemblage_no,
+             n, 
+             fill = artifact_type)) +
+  geom_col() +
+  labs(x = "Assemblage",
+       y = "Number of artefacts",
+       fill = "Artefact type") +
+  theme_minimal(base_size = 12) +
+  scale_fill_viridis_d() # change colors
+```
+
+Figure \@ref(fig:scatterplot-1) shows distribution of artefact types for different assemblages. 
+
+```{r catterplot-1}
+
+# need to remove the NA rows
+
+ggplot(data_raw_material_type_tally,
+       aes(assemblage_no,
+           n, 
+           fill = raw_material)) +
+  geom_col() +
+  labs(x = "Assemblage",
+       y = "Number of artefacts",
+       fill = "Raw material type") +
+  theme_minimal(base_size = 12) +
+  scale_fill_viridis_d() 
+```
+
+
+```{r flake-metrics-prep}
+# Explore numeric variables on complete flakes
+
+# subset complete flakes only for next steps
+cf <- data %>% 
+  filter(artifact_type == "cf") %>% 
+  mutate(assemblage_no = as.factor(assemblage_no))
+```
+
+```{r flake-metrics-scatterplot}
+# You should explore different versions of this plot
+# you are welcome to make multiple, different versions of 
+# this plot to include in your report
+
+# scatterplot of three variables, this is a handy way to show the relationship 
+# between a small number of variables
+ggplot(cf,
+       aes(platform_width, # explore different combinations of variables 
+           platform_thickness,    # and keep the most interesting results
+           size = mass_g,  # to include in your report
+           colour = assemblage_no))  +
+  geom_point() +
+  scale_color_viridis_d() +
+  theme_minimal(base_size = 12) 
+```
+
+
+```{r flake-metrics-facet-plot}
+# You don't need to change this chunk unless we tell you to update it 
+# to make it work
+
+# create data frame of all numeric variables except retouch
+# we need this to make a facetted plot to efficiently show 
+# many variables in one plot
+cf_numeric_long <- 
+cf %>% 
+  select(assemblage_no,
+         which(sapply(., class) == "numeric"),
+            -c(paste0("t", 1:8), 
+               paste0("T", 1:8))) %>% 
+  gather(variable, 
+         value, 
+         -assemblage_no)  %>% 
+  filter(!is.na(value)) %>% 
+  filter(!is.na(assemblage_no)) %>% 
+  mutate(assemblage_no = as.factor(assemblage_no)) 
+
+# facet plot of boxplots
+  ggplot(cf_numeric_long,
+         aes(assemblage_no,
+             value)) +
+  geom_boxplot() +
+  geom_quasirandom(alpha = 0.4) +
+  facet_wrap(~ variable,
+             scales = "free") +
+  labs(x = "Assemblage",
+       y = "") +
+  theme_minimal(base_size = 12) 
+```
+
+
+```{r flake-technology-facet-plot}
+
+# You don't need to change this chunk unless we tell you to update it 
+# to make it work
+
+# plot all categorical variables on complete flakes
+  
+# make a list of tallies of categorical variables
+  cf_list_categorical_variables_tally <- 
+    cf %>% 
+  select(which(sapply(., class) == "character"), 
+         assemblage_no,
+         -artifact_type) %>% 
+  gather(variable, 
+         value, 
+         -assemblage_no) %>% 
+  mutate(assemblage_no = as.factor(assemblage_no)) %>% 
+  group_by(assemblage_no, 
+           variable, 
+           value) %>% 
+  tally %>% 
+  filter(!is.na(value),
+         !is.na(assemblage_no)) %>% 
+  ungroup %>% 
+  group_split(variable)  
+
+# plot each variable across all assemblages  
+  map(cf_list_categorical_variables_tally,
+      ~ggplot(.x, aes(assemblage_no, 
+             n,
+             fill = value)) +
+  geom_col() +
+  labs(x = "Assemblage",
+       y = "n",
+       fill = .x$variable) +
+  scale_fill_viridis_d() +
+  theme_minimal(base_size = 12))  %>% 
+  plot_grid(plotlist  = .) 
+```
+
+### Flakes
+
+<!-- copy-paste from flakes, and update -->
+
+### Retouched pieces
+
+```{r}
+# retouch
+
+# You don't need to change this chunk unless we tell you to update it 
+# to make it work
+  
+# we assume that the data include a set of columns like this
+# t1 T1 t2 T2 ...
+# the exact column names don't matter, they only
+# need include the artefact zone number. Then we 
+# divide pairs of columns to get the ratio for that zone
+  
+divide_two_cols <- function(df){
+ col<-seq(1,ncol(df),by=2)
+ df[,col] / df[,-col]
+}
+
+giur_ratios_per_zone_long_df <- 
+data %>% 
+  select(matches('\\d'), 
+         assemblage_no) %>%
+  group_split(assemblage_no, keep = FALSE) %>% 
+  map(~divide_two_cols(.x)) %>% 
+  set_names(unique(data$assemblage)) %>% 
+  map(rowMeans) %>% 
+  gather(variable, value) 
+
+
+  ggplot(giur_ratios_per_zone_long_df, 
+         aes(variable, 
+             value)) +
+  geom_boxplot()  +
+  labs(x = "Assemblage",
+       y = "GUIR") +
+  theme_minimal(base_size = 12) +
+  scale_y_continuous(trans='log2')
+
+
+
+```
+
+
+
+## Discussion
+
+## Conclusion
+
+## Collaboration
+
+## References cited
+
+
+<!-- don't delete the line below, it will count the words in your report -->
+Word count: `r wordcountaddin::word_count("ARCHY-483-Experimental-Assemblages-REport.Rmd")`
